@@ -3,14 +3,15 @@
 # common functions
 
 get_value_from_collection () {
-    local collection_index=${1-}
-    local value_name=${2-}
-    if [ -z "${collection_index-}" ] || [ -z "${value_name-}" ]; then
-        echo "Usage: get_value_from_collection [collection_index] [value_name]"
+    local collection_path=${1-}
+    local collection_index=${2-}
+    local value_name=${3-}
+    if [ -z "${collection_path-}" ] || [ -z "${collection_index-}" ] || [ -z "${value_name-}" ]; then
+        echo "Usage: get_value_from_collection [collection_path] [collection_index] [value_name]"
         return 1
     fi
 
-    local value="$(yq eval ".setup.$collection_index.$value_name" config.yaml)"
+    local value="$(yq eval "$collection_path.$collection_index.$value_name" config.yaml)"
     if [[ "$value" = "null" ]]; then
         value=
     fi
@@ -18,13 +19,14 @@ get_value_from_collection () {
 }
 
 collection_any () {
-    local collection_index=${1-}
-    if [ -z "${collection_index-}" ]; then
-        echo "Usage: collection_any [collection_index]"
+    local collection_path=${1-}
+    local collection_index=${2-}
+    if [ -z "${collection_path-}" ] || [ -z "${collection_index-}" ]; then
+        echo "Usage: collection_any [collection_path] [collection_index]"
         return 1
     fi
 
-    local current_collection="$(yq eval ".setup.$collection_index" config.yaml)"
+    local current_collection="$(yq eval "$collection_path.$collection_index" config.yaml)"
     if [[ "$current_collection" != "null" ]]; then
         return 0
     else

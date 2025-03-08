@@ -8,6 +8,9 @@ exec 0<&-
 
 . common.sh
 
+setup_collection=".setup"
+
+
 download_url_base=https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/x86_64/alpine-virt-3.21.3-x86_64
 download_url_image=${download_url_base}.iso
 download_url_sha256=${download_url_image}.sha256
@@ -55,23 +58,23 @@ generate_password_if_unset () {
 }
 
 for ((i = 0; ; i++)); do
-    if ! collection_any "$i"; then
+    if ! collection_any $setup_collection "$i"; then
         break
     fi
 
-    repeat="$(get_value_from_collection $i repeat)"
+    repeat="$(get_value_from_collection $setup_collection $i repeat)"
     if [ -z "${repeat-}" ]; then
         repeat=1
     fi
 
     for ((j = 0; j < repeat; j++)); do
-        name="$(get_value_from_collection $i name)"
-        hostname="$(get_value_from_collection $i hostname)"
-        timezone="$(get_value_from_collection $i timezone)"
-        username="$(get_value_from_collection $i username)"
-        dnsaddr="$(get_value_from_collection $i dnsaddr)"
-        dnssearch="$(get_value_from_collection $i dnssearch)"
-        bootsize="$(get_value_from_collection $i bootsize)"
+        name="$(get_value_from_collection $setup_collection $i name)"
+        hostname="$(get_value_from_collection $setup_collection $i hostname)"
+        timezone="$(get_value_from_collection $setup_collection $i timezone)"
+        username="$(get_value_from_collection $setup_collection $i username)"
+        dnsaddr="$(get_value_from_collection $setup_collection $i dnsaddr)"
+        dnssearch="$(get_value_from_collection $setup_collection $i dnssearch)"
+        bootsize="$(get_value_from_collection $setup_collection $i bootsize)"
 
         if [ -z "${name-}" ]; then
             name="alpine-auto"
@@ -106,9 +109,9 @@ for ((i = 0; ; i++)); do
             bootsize=200
         fi
 
-        sshkey="$(get_value_from_collection $i sshkey)"
-        user_password="$(get_value_from_collection $i user-password)"
-        root_password="$(get_value_from_collection $i root-password)"
+        sshkey="$(get_value_from_collection $setup_collection $i sshkey)"
+        user_password="$(get_value_from_collection $setup_collection $i user-password)"
+        root_password="$(get_value_from_collection $setup_collection $i root-password)"
 
         mkdir -p "results/$name"
 
