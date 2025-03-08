@@ -1,6 +1,6 @@
 setup:
   - name: alpine-auto
-    repeat: 1
+    repeat: 3
     hostname: alpine-auto
     timezone: UTC
     username: alpine
@@ -10,3 +10,14 @@ setup:
     sshkey: "" # user key will be generated
     user-password: "123456" # empty = generate new password, "disable" = disable password auth
     root-password: ""
+
+run:
+  - name: alpine-auto
+    repeat: 3
+    hypervisor: kvm
+    disk-size: 384 # MB
+    memory: 512 # MB
+    cpu: 1
+    first-boot: true
+    kvm:
+      netprefix: "10.75" # vm address = 10.75.i.10, where i = machine num
