@@ -3,3 +3,4 @@
 .vscode/
 *.iso
 results/
+auto-setup-alpine/
