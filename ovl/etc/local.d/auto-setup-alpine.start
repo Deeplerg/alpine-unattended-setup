@@ -1,0 +1,48 @@
+#!/bin/sh
+
+set -o errexit
+set -o nounset
+
+logfile=/setup.log
+
+# Close standard input.
+exec 0<&-
+
+exec 1>/dev/tty1
+
+# Run only once.
+rm -f /etc/runlevels/default/local
+rm -f /etc/local.d/auto-setup-alpine.start
+
+# setup-alpine intentionally fails
+set +e
+setup-alpine -ef /etc/auto-setup-alpine/answers
+set -e
+
+# setup-alpine doesn't run setup-dns if dhcp
+. /etc/auto-setup-alpine/answers
+setup-dns $DNSOPTS
+
+username=$(cat /etc/auto-setup-alpine/username)
+user_password=$(cat /etc/auto-setup-alpine/user-password-hash)
+root_password=$(cat /etc/auto-setup-alpine/root-password-hash)
+
+apk update
+apk upgrade
+
+apk add shadow
+
+usermod -p $user_password $username
+usermod -p $root_password root
+
+. /etc/auto-setup-alpine/disk-answers
+# agree to erase disk
+echo "y" | \
+    BOOTLOADER=$BOOTLOADER \
+    SWAP_SIZE=$SWAP_SIZE \
+    BOOT_SIZE=$BOOT_SIZE \
+    setup-disk $DISKOPTS
+
+rm -rf /etc/auto-setup-alpine
+
+poweroff

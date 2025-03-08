@@ -1,0 +1,9 @@
+# "answer file" for setup-disk. 
+# see DISKOPTS comment in answers-template
+
+BOOTLOADER=syslinux
+#boot partition size
+BOOT_SIZE=$bootsize
+#disable swap
+SWAP_SIZE=0
+DISKOPTS='"'-m sys /dev/sda'"'

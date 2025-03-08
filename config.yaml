@@ -1,0 +1,12 @@
+setup:
+  - name: alpine-auto
+    repeat: 1
+    hostname: alpine-auto
+    timezone: UTC
+    username: alpine
+    dnsaddr: "1.1.1.1 8.8.8.8"
+    dnssearch: "localdomain"
+    bootsize: 200
+    sshkey: "" # user key will be generated
+    user-password: "123456" # empty = generate new password, "disable" = disable password auth
+    root-password: ""

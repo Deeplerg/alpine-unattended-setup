@@ -1,0 +1,34 @@
+# Use US layout with US variant
+KEYMAPOPTS='"'us us'"'
+
+HOSTNAMEOPTS='"'$hostname'"'
+
+# Contents of /etc/network/interfaces
+INTERFACESOPTS='"'"$(cat ovl-config/interfaces)"'"'
+
+# [-d DOMAINNAME] [IPADDR...]
+DNSOPTS='"'-d $dnssearch $dnsaddr'"'
+
+TIMEZONEOPTS='"'$timezone'"'
+
+PROXYOPTS=none
+
+# CDN, community
+APKREPOSOPTS='"'-1 -c'"'
+
+# admin, unlock
+USEROPTS='"'-a -u $username'"'
+USERSSHKEY='"'$sshkey'"'
+
+# Install Openssh
+SSHDOPTS=openssh
+#ROOTSSHKEY=
+
+# use chrony
+NTPOPTS=chrony
+
+# intentionally fail setup-disk.
+# setup-alpine doesn't pass env vars to setup-disk
+# so, we fail setup-alpine at the last stage and manually continue it left off
+DISKOPTS=FAIL
+
