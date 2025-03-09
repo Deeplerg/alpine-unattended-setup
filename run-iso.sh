@@ -58,7 +58,7 @@ for ((i = 0; ; i++)); do
 
     repeat="$(get_value_from_collection_or_default $collection $i "repeat" 1)"
     disk_size="$(get_value_from_collection_or_default $collection $i "disk-size" 384)"
-    memory="$(get_value_from_collection_or_default $collection $i "memory" 512)"
+    memory="$(get_value_from_collection_or_default $collection $i "memory" 768)"
     cpu="$(get_value_from_collection_or_default $collection $i "cpu" 1)"
     first_boot="$(get_value_from_collection_or_default $collection $i "first-boot" true)"
     hypervisor="$(get_value_from_collection $collection $i "hypervisor")"

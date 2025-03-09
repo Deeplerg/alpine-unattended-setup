@@ -19,7 +19,7 @@ run:
     repeat: 1
     hypervisor: kvm
     disk-size: 384 # MB
-    memory: 512 # MB
+    memory: 768 # MB
     cpu: 1
     first-boot: true
     kvm:
