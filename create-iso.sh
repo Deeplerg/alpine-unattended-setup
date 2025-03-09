@@ -6,6 +6,11 @@ set -o nounset
 # close standard input
 exec 0<&-
 
+. common.sh
+
+collection=".setup"
+
+
 download_url_base=https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/x86_64/alpine-virt-3.21.3-x86_64
 download_url_image=${download_url_base}.iso
 download_url_sha256=${download_url_image}.sha256
@@ -21,36 +26,6 @@ sha256sum -c $download_file_sha256
 rm $download_file_sha256
 
 mkdir -p ovl/etc/auto-setup-alpine
-
-get_value_from_collection () {
-    local collection_index=${1-}
-    local value_name=${2-}
-    if [ -z "${collection_index-}" ] || [ -z "${value_name-}" ]; then
-        echo "Usage: get_value_from_collection [collection_index] [value_name]"
-        return 1
-    fi
-
-    local value="$(yq eval ".setup.$collection_index.$value_name" config.yaml)"
-    if [[ "$value" = "null" ]]; then
-        value=
-    fi
-    echo "${value}"
-}
-
-collection_any () {
-    local collection_index=${1-}
-    if [ -z "${collection_index-}" ]; then
-        echo "Usage: collection_any [collection_index]"
-        return 1
-    fi
-
-    local current_collection="$(yq eval ".setup.$collection_index" config.yaml)"
-    if [[ "$current_collection" != "null" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
 
 generate_password_hash () {
     local password=${1-}
@@ -82,40 +57,24 @@ generate_password_if_unset () {
     echo $password | tee $file
 }
 
-substitute_template () {
-    local template_file=${1-}
-    local output_file=${2-}
-
-    if [ -z "${template_file-}" ] || [ -z "${output_file-}" ]; then
-        echo "Usage: substitute_template [template_file] [output_file]"
-        return 1
-    fi
-
-    rm -f $output_file
-    while read line
-    do
-        eval echo "$line" >> $output_file
-    done < $template_file
-}
-
 for ((i = 0; ; i++)); do
-    if ! collection_any "$i"; then
+    if ! collection_any $collection "$i"; then
         break
     fi
 
-    repeat="$(get_value_from_collection $i repeat)"
+    repeat="$(get_value_from_collection $collection $i repeat)"
     if [ -z "${repeat-}" ]; then
         repeat=1
     fi
 
     for ((j = 0; j < repeat; j++)); do
-        name="$(get_value_from_collection $i name)"
-        hostname="$(get_value_from_collection $i hostname)"
-        timezone="$(get_value_from_collection $i timezone)"
-        username="$(get_value_from_collection $i username)"
-        dnsaddr="$(get_value_from_collection $i dnsaddr)"
-        dnssearch="$(get_value_from_collection $i dnssearch)"
-        bootsize="$(get_value_from_collection $i bootsize)"
+        name="$(get_value_from_collection $collection $i name)"
+        hostname="$(get_value_from_collection $collection $i hostname)"
+        timezone="$(get_value_from_collection $collection $i timezone)"
+        username="$(get_value_from_collection $collection $i username)"
+        dnsaddr="$(get_value_from_collection $collection $i dnsaddr)"
+        dnssearch="$(get_value_from_collection $collection $i dnssearch)"
+        bootsize="$(get_value_from_collection $collection $i bootsize)"
 
         if [ -z "${name-}" ]; then
             name="alpine-auto"
@@ -150,9 +109,9 @@ for ((i = 0; ; i++)); do
             bootsize=200
         fi
 
-        sshkey="$(get_value_from_collection $i sshkey)"
-        user_password="$(get_value_from_collection $i user-password)"
-        root_password="$(get_value_from_collection $i root-password)"
+        sshkey="$(get_value_from_collection $collection $i sshkey)"
+        user_password="$(get_value_from_collection $collection $i user-password)"
+        root_password="$(get_value_from_collection $collection $i root-password)"
 
         mkdir -p "results/$name"
 

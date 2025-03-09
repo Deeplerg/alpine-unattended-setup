@@ -5,6 +5,8 @@ set -o nounset
 
 logfile=/setup.log
 
+trap 'poweroff' EXIT INT
+
 # Close standard input.
 exec 0<&-
 
@@ -44,5 +46,3 @@ echo "y" | \
     setup-disk $DISKOPTS
 
 rm -rf /etc/auto-setup-alpine
-
-poweroff
