@@ -1,6 +1,6 @@
 setup:
   - name: alpine-auto
-    repeat: 3
+    repeat: 1
     hostname: alpine-auto
     timezone: UTC
     username: alpine
@@ -10,6 +10,9 @@ setup:
     sshkey: "" # user key will be generated
     user-password: "123456" # empty = generate new password, "disable" = disable password auth
     root-password: ""
+    encrypt: true
+    encrypt-password: "456456" # generate new password if empty
+    lvm: true
 
 run:
   - name: alpine-auto

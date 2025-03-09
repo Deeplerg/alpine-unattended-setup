@@ -66,6 +66,16 @@ for ((i = 0; ; i++)); do
     if [ -z "${repeat-}" ]; then
         repeat=1
     fi
+    
+    encrypt="$(get_value_from_collection $collection $i encrypt)"
+    if [ -z "${encrypt-}" ]; then
+        encrypt=false
+    fi
+    
+    lvm="$(get_value_from_collection $collection $i lvm)"
+    if [ -z "${lvm-}" ]; then
+        lvm=false
+    fi
 
     for ((j = 0; j < repeat; j++)); do
         name="$(get_value_from_collection $collection $i name)"
@@ -122,10 +132,16 @@ for ((i = 0; ; i++)); do
         fi
         echo $sshkey > "results/$name/id_ed25519.pub"
 
-        user_password=$(generate_password_if_unset "results/$name/user-password" $user_password)
-        root_password=$(generate_password_if_unset "results/$name/root-password" $root_password)
+        user_password=$(generate_password_if_unset "results/$name/user-password" "${user_password:-}")
+        root_password=$(generate_password_if_unset "results/$name/root-password" "${root_password:-}")
         generate_password_hash $user_password > ovl/etc/auto-setup-alpine/user-password-hash
         generate_password_hash $root_password > ovl/etc/auto-setup-alpine/root-password-hash
+        
+        if [ "$encrypt" = true ]; then
+            encrypt_password="$(get_value_from_collection $collection $i encrypt-password)"
+            encrypt_password=$(generate_password_if_unset "results/$name/encrypt_password" "${encrypt_password:-}")
+            echo "$encrypt_password" > ovl/etc/auto-setup-alpine/encrypt-password
+        fi
 
         echo $username > ovl/etc/auto-setup-alpine/username
 
@@ -138,6 +154,9 @@ for ((i = 0; ; i++)); do
         substitute_template "ovl-config/answers-template" "ovl/etc/auto-setup-alpine/answers"
         substitute_template "ovl-config/disk-answers-template" "ovl/etc/auto-setup-alpine/disk-answers"
 
+        echo $encrypt > ovl/etc/auto-setup-alpine/encrypt
+        echo $lvm > ovl/etc/auto-setup-alpine/lvm
+        
         rm -f results/$name/apkovl.tar.gz
         tar --owner=0 --group=0 -czf results/$name/apkovl.tar.gz -C ovl .
 

@@ -37,12 +37,39 @@ apk add shadow
 usermod -p $user_password $username
 usermod -p $root_password root
 
+encrypt=$(cat /etc/auto-setup-alpine/encrypt)
+if [ "${encrypt:-false}" = "true" ]; then
+    encrypt_password=$(cat /etc/auto-setup-alpine/encrypt-password)
+    encrypt_option="\-e"
+fi
+
+lvm=$(cat /etc/auto-setup-alpine/lvm)
+if [ "${lvm:-false}" = "true" ]; then
+    lvm_option="-L"
+fi
+
 . /etc/auto-setup-alpine/disk-answers
-# agree to erase disk
-echo "y" | \
-    BOOTLOADER=$BOOTLOADER \
-    SWAP_SIZE=$SWAP_SIZE \
-    BOOT_SIZE=$BOOT_SIZE \
-    setup-disk $DISKOPTS
+# agree to erase disk with "y", type crypt password twice if required
+
+encrypt=$(cat /etc/auto-setup-alpine/encrypt)
+if [ "${encrypt:-false}" = "true" ]; then
+    encrypt_password=$(cat /etc/auto-setup-alpine/encrypt-password)
+
+    cat <<EOF | \
+        BOOTLOADER=$BOOTLOADER \
+        SWAP_SIZE=$SWAP_SIZE \
+        BOOT_SIZE=$BOOT_SIZE \
+        setup-disk -e ${lvm_option:-} $DISKOPTS
+y
+$encrypt_password
+$encrypt_password
+EOF
+else
+    echo "y" | \
+        BOOTLOADER=$BOOTLOADER \
+        SWAP_SIZE=$SWAP_SIZE \
+        BOOT_SIZE=$BOOT_SIZE \
+        setup-disk ${lvm_option:-} $DISKOPTS
+fi
 
 rm -rf /etc/auto-setup-alpine
