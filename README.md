@@ -16,6 +16,14 @@ A set of scripts to automate the initial installation of Alpine Linux.
 At least one of supported hypervisors:
 - qemu-system-x86_64 (KVM)
 
+## Basic usage
+```sh
+git clone https://github.com/Deeplerg/alpine-unattended-setup
+# configure config.yaml to your liking
+./create-iso.sh
+./run-iso.sh
+```
+
 ## How it works
 There are two main "client-side" scripts: `create-iso.sh` and `run-iso.sh`.
 
