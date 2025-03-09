@@ -5,7 +5,7 @@ set -o nounset
 
 logfile=/setup.log
 
-trap 'poweroff' EXIT INT
+trap 'poweroff' EXIT
 
 # Close standard input.
 exec 0<&-
