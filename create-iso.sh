@@ -6,7 +6,13 @@ set -o nounset
 # close standard input
 exec 0<&-
 
-. common.sh
+source common.sh
+
+# fail if we didn't get variables and disable spellcheck warnings in the process
+echo "${auto_setup_alpine_folder:?}" > /dev/null
+echo "${results_folder:?}" > /dev/null
+echo "${overlay_config_folder:?}" > /dev/null
+echo "${ovl_folder:?}" > /dev/null
 
 collection=".setup"
 
@@ -21,11 +27,11 @@ if [ ! -f "$download_file_image" ]; then
     wget $download_url_image
 fi
 wget $download_url_sha256
-sha256sum -c $download_file_sha256
+sha256sum -c "$download_file_sha256"
 
-rm $download_file_sha256
+rm "$download_file_sha256"
 
-mkdir -p ovl/etc/auto-setup-alpine
+mkdir -p "$auto_setup_alpine_folder"
 
 generate_password_hash () {
     local password=${1-}
@@ -38,7 +44,7 @@ generate_password_hash () {
     if [ "$password" = "disable" ]; then
         echo "!"
     else
-        echo $password | openssl passwd -stdin
+        echo "$password" | openssl passwd -stdin
     fi
 }
 
@@ -54,7 +60,7 @@ generate_password_if_unset () {
     if [ -z "${password-}" ]; then
         password=$(openssl rand -hex 128)
     fi
-    echo $password | tee $file
+    echo "$password" | tee "$file"
 }
 
 for ((i = 0; ; i++)); do
@@ -62,109 +68,73 @@ for ((i = 0; ; i++)); do
         break
     fi
 
-    repeat="$(get_value_from_collection $collection $i repeat)"
-    if [ -z "${repeat-}" ]; then
-        repeat=1
-    fi
-    
-    encrypt="$(get_value_from_collection $collection $i encrypt)"
-    if [ -z "${encrypt-}" ]; then
-        encrypt=false
-    fi
-    
-    lvm="$(get_value_from_collection $collection $i lvm)"
-    if [ -z "${lvm-}" ]; then
-        lvm=false
-    fi
+    repeat="$(get_value_from_collection_or_default $collection $i "repeat" 1)"
+    username="$(get_value_from_collection_or_default $collection $i "username" "alpine-auto")"
+    encrypt="$(get_value_from_collection_or_default $collection $i "encrypt" false)"
+    lvm="$(get_value_from_collection_or_default $collection $i "lvm" false)"
+    # shellcheck disable=SC2034
+    dnsaddr="$(get_value_from_collection_or_default $collection $i "dnsaddr" "1.1.1.1 8.8.8.8")"
+    # shellcheck disable=SC2034
+    dnssearch="$(get_value_from_collection_or_default $collection $i "dnssearch" "localdomain")"
+    # shellcheck disable=SC2034
+    bootsize="$(get_value_from_collection_or_default $collection $i "bootsize" 200)"
+    # shellcheck disable=SC2034
+    timezone="$(get_value_from_collection_or_default $collection $i "timezone" "UTC")"
 
     for ((j = 0; j < repeat; j++)); do
-        name="$(get_value_from_collection $collection $i name)"
-        hostname="$(get_value_from_collection $collection $i hostname)"
-        timezone="$(get_value_from_collection $collection $i timezone)"
-        username="$(get_value_from_collection $collection $i username)"
-        dnsaddr="$(get_value_from_collection $collection $i dnsaddr)"
-        dnssearch="$(get_value_from_collection $collection $i dnssearch)"
-        bootsize="$(get_value_from_collection $collection $i bootsize)"
-
-        if [ -z "${name-}" ]; then
-            name="alpine-auto"
-        fi
-
-        if [ -z "${hostname-}" ]; then
-            hostname="alpine-auto"
-        fi
+        name="$(get_value_from_collection_or_default $collection $i "name" "alpine-auto")"
+        hostname="$(get_value_from_collection_or_default $collection $i "hostname" "alpine-auto")"
 
         if [ "$repeat" -gt 1 ]; then
             name="${name}-$j"
             hostname="${hostname}-$j"
         fi
 
-        if [ -z "${timezone-}" ]; then
-            timezone="UTC"
-        fi
+        sshkey="$(get_value_from_collection $collection $i "sshkey")"
+        user_password="$(get_value_from_collection $collection $i "user-password")"
+        root_password="$(get_value_from_collection $collection $i "root-password")"
 
-        if [ -z "${username-}" ]; then
-            username="alpine"
-        fi
+        current_results_folder="$results_folder/$name"
 
-        if [ -z "${dnsaddr-}" ]; then
-            dnsaddr="1.1.1.1 8.8.8.8"
-        fi
-
-        if [ -z "${dnssearch-}" ]; then
-            dnssearch="localdomain"
-        fi
-
-        if [ -z "${bootsize-}" ]; then
-            bootsize=200
-        fi
-
-        sshkey="$(get_value_from_collection $collection $i sshkey)"
-        user_password="$(get_value_from_collection $collection $i user-password)"
-        root_password="$(get_value_from_collection $collection $i root-password)"
-
-        mkdir -p "results/$name"
+        mkdir -p "$current_results_folder"
 
         if [ -z "${sshkey-}" ]; then
-            rm -f "results/$name/id_ed25519"
-            ssh-keygen -t ed25519 -f "results/$name/id_ed25519" -C "" -N ""
-            sshkey=$(cat "results/$name/id_ed25519.pub")
+            rm -f "$current_results_folder/id_ed25519"
+            ssh-keygen -t ed25519 -f "$current_results_folder/id_ed25519" -C "" -N ""
+            sshkey=$(cat "$current_results_folder/id_ed25519.pub")
         fi
-        echo $sshkey > "results/$name/id_ed25519.pub"
+        echo "$sshkey" > "$current_results_folder/id_ed25519.pub"
 
-        user_password=$(generate_password_if_unset "results/$name/user-password" "${user_password:-}")
-        root_password=$(generate_password_if_unset "results/$name/root-password" "${root_password:-}")
-        generate_password_hash $user_password > ovl/etc/auto-setup-alpine/user-password-hash
-        generate_password_hash $root_password > ovl/etc/auto-setup-alpine/root-password-hash
+        user_password=$(generate_password_if_unset "$current_results_folder/user-password" "${user_password:-}")
+        root_password=$(generate_password_if_unset "$current_results_folder/root-password" "${root_password:-}")
+        generate_password_hash "$user_password" > "$auto_setup_alpine_folder/user-password-hash"
+        generate_password_hash "$root_password" > "$auto_setup_alpine_folder/root-password-hash"
         
         if [ "$encrypt" = true ]; then
-            encrypt_password="$(get_value_from_collection $collection $i encrypt-password)"
-            encrypt_password=$(generate_password_if_unset "results/$name/encrypt_password" "${encrypt_password:-}")
-            echo "$encrypt_password" > ovl/etc/auto-setup-alpine/encrypt-password
+            encrypt_password="$(get_value_from_collection $collection $i "encrypt-password")"
+            encrypt_password=$(generate_password_if_unset "$current_results_folder/encrypt_password" "${encrypt_password:-}")
+            echo "$encrypt_password" > "$auto_setup_alpine_folder/encrypt-password"
         fi
 
-        echo $username > ovl/etc/auto-setup-alpine/username
+        echo "$username" > "$auto_setup_alpine_folder/username"
 
-        rm -f "ovl/etc/auto-setup-alpine/answers"
-        while read line
-        do
-            eval echo "$line" >> "ovl/etc/auto-setup-alpine/answers"
-        done < "ovl-config/answers-template"
+        substitute_template "$overlay_config_folder/answers-template" "$auto_setup_alpine_folder/answers"
+        substitute_template "$overlay_config_folder/disk-answers-template" "$auto_setup_alpine_folder/disk-answers"
 
-        substitute_template "ovl-config/answers-template" "ovl/etc/auto-setup-alpine/answers"
-        substitute_template "ovl-config/disk-answers-template" "ovl/etc/auto-setup-alpine/disk-answers"
-
-        echo $encrypt > ovl/etc/auto-setup-alpine/encrypt
-        echo $lvm > ovl/etc/auto-setup-alpine/lvm
+        echo "$encrypt" > "$auto_setup_alpine_folder/encrypt"
+        echo "$lvm" > "$auto_setup_alpine_folder/lvm"
         
-        rm -f results/$name/apkovl.tar.gz
-        tar --owner=0 --group=0 -czf results/$name/apkovl.tar.gz -C ovl .
-
-        rm -f results/$name/image.iso
+        image_file="$current_results_folder/image.iso"
+        overlay_file="$current_results_folder/apkovl.tar.gz"
+        
+        rm -f "$overlay_file" # remove existing overlay (if it exists)
+        tar --owner=0 --group=0 -czf "$overlay_file" -C "$ovl_folder" .
+        
+        rm -f "$image_file"
         xorriso \
-            -indev $download_file_image \
-            -outdev results/$name/image.iso \
-            -map results/$name/apkovl.tar.gz /localhost.apkovl.tar.gz \
+            -indev "$download_file_image" \
+            -outdev "$image_file" \
+            -map "$overlay_file" /localhost.apkovl.tar.gz \
             -boot_image any replay
     done
 done

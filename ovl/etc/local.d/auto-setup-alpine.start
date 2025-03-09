@@ -3,8 +3,6 @@
 set -o errexit
 set -o nounset
 
-logfile=/setup.log
-
 trap 'poweroff' EXIT
 
 # Close standard input.
@@ -23,7 +21,7 @@ set -e
 
 # setup-alpine doesn't run setup-dns if dhcp
 . /etc/auto-setup-alpine/answers
-setup-dns $DNSOPTS
+setup-dns "$DNSOPTS"
 
 username=$(cat /etc/auto-setup-alpine/username)
 user_password=$(cat /etc/auto-setup-alpine/user-password-hash)
@@ -34,13 +32,12 @@ apk upgrade
 
 apk add shadow
 
-usermod -p $user_password $username
-usermod -p $root_password root
+usermod -p "$user_password" "$username"
+usermod -p "$root_password" root
 
 encrypt=$(cat /etc/auto-setup-alpine/encrypt)
 if [ "${encrypt:-false}" = "true" ]; then
     encrypt_password=$(cat /etc/auto-setup-alpine/encrypt-password)
-    encrypt_option="\-e"
 fi
 
 lvm=$(cat /etc/auto-setup-alpine/lvm)
@@ -55,6 +52,7 @@ encrypt=$(cat /etc/auto-setup-alpine/encrypt)
 if [ "${encrypt:-false}" = "true" ]; then
     encrypt_password=$(cat /etc/auto-setup-alpine/encrypt-password)
 
+    # shellcheck disable=SC2086
     cat <<EOF | \
         BOOTLOADER=$BOOTLOADER \
         SWAP_SIZE=$SWAP_SIZE \
@@ -65,6 +63,7 @@ $encrypt_password
 $encrypt_password
 EOF
 else
+    # shellcheck disable=SC2086
     echo "y" | \
         BOOTLOADER=$BOOTLOADER \
         SWAP_SIZE=$SWAP_SIZE \
