@@ -16,7 +16,7 @@ setup:
 
 run:
   - name: alpine-auto
-    repeat: 3
+    repeat: 1
     hypervisor: kvm
     disk-size: 384 # MB
     memory: 512 # MB
