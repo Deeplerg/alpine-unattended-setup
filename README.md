@@ -22,6 +22,7 @@ git clone https://github.com/Deeplerg/alpine-unattended-setup
 # configure config.yaml to your liking
 ./create-iso.sh
 ./run-iso.sh
+# .raw disk files are placed in results/$machine_name/
 ```
 
 ## How it works
@@ -122,6 +123,23 @@ The (future) contents of `/etc/network/interfaces`.
 
 ### `ovl/etc/apk/repositories`
 The initial contents of `/etc/apk/repositories` used for setup.
+
+### Generated artifacts (`results/`)
+If `repeat = 1`, a single `results/$machine_name` folder is created.
+
+If `repeat > 1`, multiple `results/$machine_name-$i` folders are created, 
+with `$i` being the machine number. For example, `results/alpine-auto-0/`,`results/alpine-auto-1/`, etc.   
+
+Each machine's folder contains:
+- `apkovl.tar.gz`: the overlay file included in the .iso
+- `image.iso`: the .iso image attached to the VM
+- `image.raw`: the .raw disk file attached to the VM
+- `user-password`: default user's password
+- `root-password`: root password
+- `encrypt_password`: disk encryption password
+- `id_ed25519`: private ssh key
+- `id_ed25519.pub`: public ssh key
+
 
 ## Credits
 **Based on this guide: https://www.skreutz.com/posts/unattended-installation-of-alpine-linux/**
