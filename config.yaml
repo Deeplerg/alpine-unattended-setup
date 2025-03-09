@@ -20,4 +20,4 @@ run:
     cpu: 1
     first-boot: true
     kvm:
-      netprefix: "10.75" # vm address = 10.75.i.10, where i = machine num
+      local-ssh-port-start: 33000 # start from 32000 and increase: 32001, 32002, ...

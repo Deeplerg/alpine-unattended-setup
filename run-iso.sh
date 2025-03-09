@@ -14,11 +14,11 @@ start_kvm () {
     local disk_path=${1-}
     local memory=${2-}
     local cpu=${3-}
-    local netprefix=${4-}
+    local local_port=${4-}
     local iso_path=${5-}
 
     if [[ -z ${1-} || -z ${2-} || -z ${3-} || -z ${4-} ]]; then
-        echo "Usage: start_kvm [disk_path] [memory] [cpu] [netprefix (x.x.x)] [iso_path (optional)]"
+        echo "Usage: start_kvm [disk_path] [memory] [cpu] [local_port] [iso_path (optional)]"
         return 1
     fi
 
@@ -37,7 +37,7 @@ start_kvm () {
         ${iso_command_part-} \
         -enable-kvm \
         -device virtio-net-pci,netdev=net0 \
-        -netdev user,id=net0,net=$netprefix.0/24,dhcpstart=$netprefix.10 \
+        -netdev user,id=net0,hostfwd=tcp::$local_port-:22 \
         -nographic > /dev/null
 }
 
@@ -49,17 +49,46 @@ for ((i = 0; ; i++)); do
     fi
 
     repeat="$(get_value_from_collection $collection $i repeat)"
+    hypervisor="$(get_value_from_collection $collection $i hypervisor)"
+    disk_size="$(get_value_from_collection $collection $i disk-size)"
+    memory="$(get_value_from_collection $collection $i memory)"
+    cpu="$(get_value_from_collection $collection $i cpu)"
+    first_boot="$(get_value_from_collection $collection $i first-boot)"
+
     if [ -z "${repeat-}" ]; then
         repeat=1
     fi
 
+    if [ -z "${hypervisor-}" ]; then
+        echo "Hypervisor not set. Add \"hypervisor:\"."
+        exit 1
+    fi
+
+    if [ -z "${disk_size-}" ]; then
+        disk_size=384
+    fi
+
+    if [ -z "${memory-}" ]; then
+        memory=512
+    fi
+
+    if [ -z "${cpu-}" ]; then
+        cpu=1
+    fi
+
+    if [ -z "${first_boot-}" ]; then
+        first_boot=true
+    fi
+
+    if [ "$hypervisor" = "kvm" ]; then
+        kvm_port="$(get_value_from_collection "$collection" $i kvm.local-ssh-port-start)"
+        if [ -z "${kvm_port-}" ]; then
+            kvm_port="32000"
+        fi
+    fi
+
     for ((j = 0; j < repeat; j++)); do
         name="$(get_value_from_collection $collection $i name)"
-        hypervisor="$(get_value_from_collection $collection $i hypervisor)"
-        disk_size="$(get_value_from_collection $collection $i disk-size)"
-        memory="$(get_value_from_collection $collection $i memory)"
-        cpu="$(get_value_from_collection $collection $i cpu)"
-        first_boot="$(get_value_from_collection $collection $i first-boot)"
 
         if [ -z "${name-}" ]; then
             name="alpine-auto"
@@ -67,27 +96,6 @@ for ((i = 0; ; i++)); do
 
         if [ "$repeat" -gt 1 ]; then
             name="${name}-$j"
-        fi
-
-        if [ -z "${hypervisor-}" ]; then
-            echo "Hypervisor not set. Add \"hypervisor:\"."
-            exit 1
-        fi
-
-        if [ -z "${disk_size-}" ]; then
-            disk_size=384
-        fi
-
-        if [ -z "${memory-}" ]; then
-            memory=512
-        fi
-
-        if [ -z "${cpu-}" ]; then
-            cpu=1
-        fi
-
-        if [ -z "${first_boot-}" ]; then
-            first_boot=true
         fi
 
         disk="results/$name/image.raw"
@@ -99,15 +107,11 @@ for ((i = 0; ; i++)); do
 
         case "$hypervisor" in
             "kvm")
-                netprefix="$(get_value_from_collection "$collection" $i kvm.netprefix)"
-                if [ -z "${netprefix-}" ]; then
-                    netprefix="10.75"
-                fi
-                netprefix="$netprefix.$j"
-
-                start_kvm $disk $memory $cpu $netprefix ${install_iso-} &
+                start_kvm $disk $memory $cpu $kvm_port ${install_iso-} &
                 kvm_pid=$!
                 kvm_pids[$j]=$kvm_pid
+
+                ((kvm_port+=1))
                 ;;
             
             *)
