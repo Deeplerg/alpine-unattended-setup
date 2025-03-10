@@ -13,6 +13,7 @@ echo "${auto_setup_alpine_folder:?}" > /dev/null
 echo "${results_folder:?}" > /dev/null
 echo "${overlay_config_folder:?}" > /dev/null
 echo "${ovl_folder:?}" > /dev/null
+echo "${dropbear_submodule_folder:?}" > /dev/null
 
 collection=".run"
 

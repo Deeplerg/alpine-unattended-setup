@@ -1,4 +1,4 @@
-﻿# alpine-unattended-setup
+# alpine-unattended-setup
 
 ## About
 A set of scripts to automate the initial installation of Alpine Linux.
@@ -63,6 +63,7 @@ This also allows us to do other things before copying system files onto a new di
 - Runs `setup-dns` (because `setup-alpine` populates it with DHCP-provided values if DHCP networking is configured)
 - Sets up passwords
 - Runs `setup-disk` with specific configurable environment variables, such as `BOOT_SIZE`
+- Configures dropbear if requested (see configuration) for remotely decrypting disk via SSH.
 - Shuts down upon completion. 
 
 ## Configuration
@@ -92,6 +93,15 @@ If `"disable"`, password authentication is disabled.
 - `encrypt`: whether to encrypt the system partition.
 - `encrypt-password`: encryption password. If empty, a random 128-character password will be generated.
 - `lvm`: whether to build an LVM group.
+- `dropbear`: whether to configure dropbear. Dropbear will run on boot (initramfs stage)
+with cryptsetup password prompt as shell. This way, it will be possible to unlock encrypted system partition
+remotely and securely via SSH, without having to input the encryption password in VNC
+or having to store it in the boot partition.
+- `dropbear-sshkey`: public ssh key for dropbear. If empty, a new `ed25519` key will be generated.
+This option is separate from `"sshkey"`.
+- `dropbear-debug`: whether to configure the boot menu in a way that makes troubleshooting possible.
+If true, the boot menu will be visible during startup.
+- `dropbear-debug-timeout`: boot menu timeout in seconds.
 
 #### `.run.[]`
 - `name`: machine name
@@ -120,6 +130,9 @@ Answerfile template for `setup-disk`. Populated with variables based on `config.
 
 #### `interfaces`
 The (future) contents of `/etc/network/interfaces`.
+
+#### `dropbear/mkinitfs.conf`:
+If dropbear is enabled, use this configuration file with mkinitfs (for initramfs)
 
 ### `ovl/etc/apk/repositories`
 The initial contents of `/etc/apk/repositories` used for setup.

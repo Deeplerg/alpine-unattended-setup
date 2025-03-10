@@ -13,6 +13,10 @@ setup:
     encrypt: true
     encrypt-password: "456456" # generate new password if empty
     lvm: true
+    dropbear: true # run dropbear on boot to be able to unlock encrypted partition remotely
+    dropbear-sshkey: "" # generate if empty 
+    dropbear-debug: true # unhide boot menu. If something goes wrong, it will still be possible to unlock disk
+    dropbear-debug-timeout: 10 # boot menu timeout in seconds
 
 run:
   - name: alpine-auto

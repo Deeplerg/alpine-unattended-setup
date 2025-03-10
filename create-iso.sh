@@ -13,6 +13,7 @@ echo "${auto_setup_alpine_folder:?}" > /dev/null
 echo "${results_folder:?}" > /dev/null
 echo "${overlay_config_folder:?}" > /dev/null
 echo "${ovl_folder:?}" > /dev/null
+echo "${dropbear_submodule_folder:?}" > /dev/null
 
 collection=".setup"
 
@@ -63,6 +64,25 @@ generate_password_if_unset () {
     echo "$password" | tee "$file"
 }
 
+generate_sshkey_if_unset () {
+        local file=${1-}
+        local key=${2-}
+    
+        if [ -z "$file" ]; then
+            echo "Usage: generate_sshkey_if_unset [private key output file] [public key (optional)]"
+        fi
+    
+        rm -f "$file"
+        if [ -z "${key-}" ]; then
+            ssh-keygen -t ed25519 -f "$file" -C "" -N "" > /dev/null
+            key=$(cat "$file.pub")
+        else
+            echo "$key" > "$file.pub" 
+        fi
+        
+        echo "$key"
+}
+
 for ((i = 0; ; i++)); do
     if ! collection_any $collection "$i"; then
         break
@@ -72,6 +92,9 @@ for ((i = 0; ; i++)); do
     username="$(get_value_from_collection_or_default $collection $i "username" "alpine-auto")"
     encrypt="$(get_value_from_collection_or_default $collection $i "encrypt" false)"
     lvm="$(get_value_from_collection_or_default $collection $i "lvm" false)"
+    dropbear="$(get_value_from_collection_or_default $collection $i "dropbear" false)"
+    dropbear_debug="$(get_value_from_collection_or_default $collection $i "dropbear-debug" true)"
+    dropbear_debug_timeout="$(get_value_from_collection_or_default $collection $i "dropbear-debug-timeout" 10)"
     # shellcheck disable=SC2034
     dnsaddr="$(get_value_from_collection_or_default $collection $i "dnsaddr" "1.1.1.1 8.8.8.8")"
     # shellcheck disable=SC2034
@@ -90,21 +113,18 @@ for ((i = 0; ; i++)); do
             hostname="${hostname}-$j"
         fi
 
-        sshkey="$(get_value_from_collection $collection $i "sshkey")"
-        user_password="$(get_value_from_collection $collection $i "user-password")"
-        root_password="$(get_value_from_collection $collection $i "root-password")"
-
         current_results_folder="$results_folder/$name"
-
         mkdir -p "$current_results_folder"
 
-        if [ -z "${sshkey-}" ]; then
-            rm -f "$current_results_folder/id_ed25519"
-            ssh-keygen -t ed25519 -f "$current_results_folder/id_ed25519" -C "" -N ""
-            sshkey=$(cat "$current_results_folder/id_ed25519.pub")
+        sshkey="$(get_value_from_collection $collection $i "sshkey")"
+        sshkey="$(generate_sshkey_if_unset "$current_results_folder/id_ed25519" "$sshkey")"
+        if [ "${dropbear}" = true ]; then
+            dropbear_sshkey="$(get_value_from_collection $collection $i "dropbear-sshkey")"
+            dropbear_sshkey="$(generate_sshkey_if_unset "$current_results_folder/dropbear-id_ed25519" "$dropbear_sshkey")"
         fi
-        echo "$sshkey" > "$current_results_folder/id_ed25519.pub"
 
+        user_password="$(get_value_from_collection $collection $i "user-password")"
+        root_password="$(get_value_from_collection $collection $i "root-password")"
         user_password=$(generate_password_if_unset "$current_results_folder/user-password" "${user_password:-}")
         root_password=$(generate_password_if_unset "$current_results_folder/root-password" "${root_password:-}")
         generate_password_hash "$user_password" > "$auto_setup_alpine_folder/user-password-hash"
@@ -123,6 +143,16 @@ for ((i = 0; ; i++)); do
 
         echo "$encrypt" > "$auto_setup_alpine_folder/encrypt"
         echo "$lvm" > "$auto_setup_alpine_folder/lvm"
+        
+        echo "$dropbear" > "$auto_setup_alpine_folder/dropbear-enabled"
+        if [ "$dropbear" = true ]; then
+            mkdir -p "$auto_setup_alpine_folder/dropbear/setup"
+            cp -r "$dropbear_submodule_folder"/* "$auto_setup_alpine_folder/dropbear/"
+            cp -r "$overlay_config_folder/dropbear"/* "$auto_setup_alpine_folder/dropbear/setup"
+            echo "$dropbear_sshkey" > "$auto_setup_alpine_folder/dropbear/id_ed25519.pub"
+            echo "$dropbear_debug" > "$auto_setup_alpine_folder/dropbear/debug-enabled"
+            echo "$dropbear_debug_timeout" > "$auto_setup_alpine_folder/dropbear/debug-timeout"
+        fi
         
         image_file="$current_results_folder/image.iso"
         overlay_file="$current_results_folder/apkovl.tar.gz"
