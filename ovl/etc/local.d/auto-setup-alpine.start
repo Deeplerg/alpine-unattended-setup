@@ -10,48 +10,64 @@ exec 0<&-
 
 exec 1>/dev/tty1
 
+setup_folder="/etc/auto-setup-alpine"
+dropbear_folder="$setup_folder/dropbear"
+
 # Run only once.
 rm -f /etc/runlevels/default/local
 rm -f /etc/local.d/auto-setup-alpine.start
 
 # setup-alpine intentionally fails
 set +e
-setup-alpine -ef /etc/auto-setup-alpine/answers
+setup-alpine -ef $setup_folder/answers
 set -e
 
 # setup-alpine doesn't run setup-dns if dhcp
-. /etc/auto-setup-alpine/answers
+. $setup_folder/answers
 setup-dns "$DNSOPTS"
 
-username=$(cat /etc/auto-setup-alpine/username)
-user_password=$(cat /etc/auto-setup-alpine/user-password-hash)
-root_password=$(cat /etc/auto-setup-alpine/root-password-hash)
+username=$(cat $setup_folder/username)
+user_password=$(cat $setup_folder/user-password-hash)
+root_password=$(cat $setup_folder/root-password-hash)
+
+dropbear=$(cat $setup_folder/dropbear-enabled)
 
 apk update
 apk upgrade
 
 apk add shadow
+if [ "${dropbear:=false}" = "true" ]; then
+    dropbear_debug=$(cat $dropbear_folder/debug-enabled)
+    dropbear_debug_timeout=$(cat $dropbear_folder/debug-timeout)
+    
+    # just in case
+    dropbear_debug=${dropbear_debug:-true}
+    dropbear_debug_timeout=${dropbear_debug_timeout:-10}
+    
+    apk add dropbear
+fi
 
 usermod -p "$user_password" "$username"
 usermod -p "$root_password" root
 
-encrypt=$(cat /etc/auto-setup-alpine/encrypt)
-if [ "${encrypt:-false}" = "true" ]; then
-    encrypt_password=$(cat /etc/auto-setup-alpine/encrypt-password)
+encrypt=$(cat $setup_folder/encrypt)
+if [ "${encrypt:=false}" = "true" ]; then
+    encrypt_password=$(cat $setup_folder/encrypt-password)
 fi
 
-lvm=$(cat /etc/auto-setup-alpine/lvm)
-if [ "${lvm:-false}" = "true" ]; then
+lvm=$(cat $setup_folder/lvm)
+if [ "${lvm:=false}" = "true" ]; then
     lvm_option="-L"
 fi
 
-. /etc/auto-setup-alpine/disk-answers
+. $setup_folder/disk-answers
+
+if [ "$dropbear" = "false" ]; then
+    rm -rf $setup_folder
+fi
+
 # agree to erase disk with "y", type crypt password twice if required
-
-encrypt=$(cat /etc/auto-setup-alpine/encrypt)
-if [ "${encrypt:-false}" = "true" ]; then
-    encrypt_password=$(cat /etc/auto-setup-alpine/encrypt-password)
-
+if [ "$encrypt" = "true" ]; then
     # shellcheck disable=SC2086
     cat <<EOF | \
         BOOTLOADER=$BOOTLOADER \
@@ -71,4 +87,70 @@ else
         setup-disk ${lvm_option:-} $DISKOPTS
 fi
 
-rm -rf /etc/auto-setup-alpine
+if [ "$dropbear" = "true" ]; then
+    root_dev="/dev/dm-0"
+    mapper_dev="/dev/mapper/root"
+    
+    if [ "$lvm" = "true" ]; then
+        root_dev="/dev/vg0/lv_root"
+        mapper_dev="/dev/mapper/vg0-lv_root"
+    fi
+    
+    echo "$encrypt_password" | nlplug-findfs -c /dev/sda2 -m root -p /sbin/mdev "$root_dev"
+    
+    root_mount="/mnt/root"
+    mkdir -p "$root_mount"
+    mount "$mapper_dev" "$root_mount"
+    
+    mkdir -p "/boot"
+    mount "/dev/sda1" "/boot"
+    
+    cp "$dropbear_folder/features.d"/* "$root_mount/etc/mkinitfs/features.d/"
+    cp "$dropbear_folder/initramfs-init-dropbear" "$root_mount/usr/share/mkinitfs/initramfs-init-dropbear"
+    cp "$dropbear_folder/dropbear/unlock_disk" "$root_mount/etc/dropbear/"
+    
+    cp "$dropbear_folder/id_ed25519.pub" "$root_mount/etc/dropbear/authorized_keys"
+    
+    cp "$dropbear_folder/setup/mkinitfs.conf" "$root_mount/etc/mkinitfs/mkinitfs.conf"
+    
+    # append "dropbear=22 ip=dhcp" to default_kernel_opts
+    sed -i 's/\(default_kernel_opts=".*\)"/\1 dropbear=22 ip=dhcp"/' "$root_mount/etc/update-extlinux.conf"
+    # append ",ata_generic,e1000,virtio_net,virtio_pci" to modules
+    sed -i 's/\(modules=.*\)/\1,ata_generic,e1000,virtio_net,virtio_pci/' "$root_mount/etc/update-extlinux.conf"
+    
+    if [ "$dropbear_debug" = "true" ]; then
+        # to make troubleshooting possible, un-hide the boot menu (set "hidden=0")
+        sed -i 's/hidden=1/hidden=0/' "$root_mount/etc/update-extlinux.conf"
+        # and set timeout
+        sed -i "s/timeout=1/timeout=$dropbear_debug_timeout/" "$root_mount/etc/update-extlinux.conf"
+    fi
+    
+    # now we need to patch /sbin/update-extlinux itself because it isn't configurable
+    # replace "myconf=..." declaration with "myconf=$root_mount/etc/update-extlinux.conf"
+    sed -i "s#\(^myconf=\).*#\1$root_mount/etc/update-extlinux.conf#" "/sbin/update-extlinux"
+    
+    # /sbin/update-extlinux itself isn't configurable, 
+    # so we have to use /etc/update-extlinux.conf
+    # and /usr/share/kernel/*/kernel.release
+    cp "$root_mount/etc/update-extlinux.conf" "/etc/update-extlinux.conf"
+    
+    mkdir -p "/usr/share/kernel/virt/"
+    cp "$root_mount/usr/share/kernel/virt/kernel.release" "/usr/share/kernel/virt/kernel.release"
+    
+    update-extlinux
+    
+    # shellcheck disable=SC2012 
+    # 'ls' is fine here
+    kernel=$(ls -1 "$root_mount/lib/modules/" | sort -V | tail -n1)
+    
+    mkinitfs \
+        -i "$root_mount/usr/share/mkinitfs/initramfs-init-dropbear" \
+        -c "$root_mount/etc/mkinitfs/mkinitfs.conf" \
+        -f "$root_mount/usr/share/mkinitfs/fstab" \
+        -b "$root_mount" \
+        -o "/boot/initramfs-virt" \
+        -P "$root_mount/etc/mkinitfs/features.d" \
+        "$kernel"
+        
+    rm -rf $setup_folder 
+fi

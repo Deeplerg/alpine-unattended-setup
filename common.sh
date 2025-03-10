@@ -6,6 +6,7 @@ export results_folder="results"
 export ovl_folder="ovl"
 export auto_setup_alpine_folder="$ovl_folder/etc/auto-setup-alpine"
 export overlay_config_folder="ovl-config"
+export dropbear_submodule_folder="alpine-initramfs-dropbear"
 
 # common functions
 

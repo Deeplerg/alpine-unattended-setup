@@ -1,0 +1,3 @@
+[submodule "alpine-initramfs-dropbear"]
+	path = alpine-initramfs-dropbear
+	url = https://github.com/Deeplerg/fork-alpine-initramfs-dropbear
