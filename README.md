@@ -18,7 +18,7 @@ At least one of supported hypervisors:
 
 ## Basic usage
 ```sh
-git clone https://github.com/Deeplerg/alpine-unattended-setup
+git clone https://github.com/Deeplerg/alpine-unattended-setup --recursive
 # configure config.yaml to your liking
 ./create-iso.sh
 ./run-iso.sh
