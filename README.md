@@ -159,4 +159,6 @@ Each machine's folder contains:
 ## Credits
 **Based on this guide: https://www.skreutz.com/posts/unattended-installation-of-alpine-linux/**
 
-[Alpine](https://alpinelinux.org) ❤️
+The original repo of alpine-initramfs-dropbear: https://github.com/mk-f/alpine-initramfs-dropbear
+
+[Alpine ❤️](https://alpinelinux.org)
