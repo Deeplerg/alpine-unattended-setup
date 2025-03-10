@@ -152,6 +152,8 @@ Each machine's folder contains:
 - `encrypt_password`: disk encryption password
 - `id_ed25519`: private ssh key
 - `id_ed25519.pub`: public ssh key
+- `dropbear-id_ed25519`: private ssh key for dropbear
+- `dropbear-id_ed25519.pub`: public ssh key for dropbear
 
 
 ## Credits
